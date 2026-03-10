@@ -5,7 +5,7 @@ COMMIT := $(shell git rev-parse --short HEAD 2>/dev/null || echo "none")
 DATE := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 LDFLAGS := -ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
 
-.PHONY: build test vet clean run snapshot release changelog
+.PHONY: build test vet clean run snapshot
 
 build:
 	go build $(LDFLAGS) -o $(BIN_DIR)/$(BINARY) ./cmd/hprof-analyzer/
@@ -24,9 +24,3 @@ run: build
 
 snapshot:
 	goreleaser release --snapshot --clean
-
-release:
-	./scripts/release.sh
-
-changelog:
-	./scripts/changelog.sh
