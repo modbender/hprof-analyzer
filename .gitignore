@@ -1,0 +1,22 @@
+# Build output
+bin/
+dist/
+
+# Test data (large dumps)
+testdata/*.hprof
+testdata/*.bin
+testdata/*.class
+!testdata/small.hprof
+
+# Index files
+*.hpai
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
