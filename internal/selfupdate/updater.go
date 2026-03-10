@@ -1,10 +1,6 @@
 package selfupdate
 
 import (
-	"archive/tar"
-	"archive/zip"
-	"bytes"
-	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -48,25 +44,20 @@ func Upgrade(currentVersion string) (string, error) {
 		return "", nil
 	}
 
-	archiveAsset, checksumAsset, err := findAssets(release)
+	binaryAsset, checksumAsset, err := findAssets(release)
 	if err != nil {
 		return "", err
 	}
 
-	archiveData, err := download(archiveAsset.BrowserDownloadURL)
+	binaryData, err := download(binaryAsset.BrowserDownloadURL)
 	if err != nil {
 		return "", fmt.Errorf("downloading release: %w", err)
 	}
 
 	if checksumAsset != nil {
-		if err := verifyChecksum(archiveData, archiveAsset.Name, checksumAsset.BrowserDownloadURL); err != nil {
+		if err := verifyChecksum(binaryData, binaryAsset.Name, checksumAsset.BrowserDownloadURL); err != nil {
 			return "", err
 		}
-	}
-
-	binaryData, err := extractBinary(archiveData, archiveAsset.Name)
-	if err != nil {
-		return "", fmt.Errorf("extracting binary: %w", err)
 	}
 
 	if err := replaceBinary(binaryData); err != nil {
@@ -97,23 +88,16 @@ func fetchLatestRelease() (*ghRelease, error) {
 	return &release, nil
 }
 
-func findAssets(release *ghRelease) (archive ghAsset, checksum *ghAsset, err error) {
+func findAssets(release *ghRelease) (binary ghAsset, checksum *ghAsset, err error) {
 	goos := runtime.GOOS
 	goarch := runtime.GOARCH
 
-	// goreleaser naming convention
-	var ext string
-	if goos == "windows" {
-		ext = ".zip"
-	} else {
-		ext = ".tar.gz"
-	}
-
-	archiveName := fmt.Sprintf("hprof-analyzer_%s_%s%s", goos, goarch, ext)
+	// Raw binary name from goreleaser (format: binary)
+	assetName := fmt.Sprintf("hprof-analyzer_%s_%s", goos, goarch)
 
 	for _, a := range release.Assets {
-		if a.Name == archiveName {
-			archive = a
+		if a.Name == assetName {
+			binary = a
 		}
 		if a.Name == "checksums.txt" {
 			cs := a
@@ -121,10 +105,10 @@ func findAssets(release *ghRelease) (archive ghAsset, checksum *ghAsset, err err
 		}
 	}
 
-	if archive.Name == "" {
-		return archive, nil, fmt.Errorf("no release asset found for %s/%s (looking for %s)", goos, goarch, archiveName)
+	if binary.Name == "" {
+		return binary, nil, fmt.Errorf("no release asset found for %s/%s (looking for %s)", goos, goarch, assetName)
 	}
-	return archive, checksum, nil
+	return binary, checksum, nil
 }
 
 func download(url string) ([]byte, error) {
@@ -166,59 +150,6 @@ func verifyChecksum(data []byte, filename, checksumURL string) error {
 		return fmt.Errorf("checksum mismatch: expected %s, got %s", expectedHash, actualHex)
 	}
 	return nil
-}
-
-func extractBinary(archiveData []byte, archiveName string) ([]byte, error) {
-	binaryName := "hprof-analyzer"
-	if runtime.GOOS == "windows" {
-		binaryName += ".exe"
-	}
-
-	if strings.HasSuffix(archiveName, ".tar.gz") {
-		return extractFromTarGz(archiveData, binaryName)
-	}
-	return extractFromZip(archiveData, binaryName)
-}
-
-func extractFromTarGz(data []byte, binaryName string) ([]byte, error) {
-	gz, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer gz.Close()
-
-	tr := tar.NewReader(gz)
-	for {
-		hdr, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		if filepath.Base(hdr.Name) == binaryName {
-			return io.ReadAll(tr)
-		}
-	}
-	return nil, fmt.Errorf("binary %s not found in archive", binaryName)
-}
-
-func extractFromZip(data []byte, binaryName string) ([]byte, error) {
-	zr, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
-	if err != nil {
-		return nil, err
-	}
-	for _, f := range zr.File {
-		if filepath.Base(f.Name) == binaryName {
-			rc, err := f.Open()
-			if err != nil {
-				return nil, err
-			}
-			defer rc.Close()
-			return io.ReadAll(rc)
-		}
-	}
-	return nil, fmt.Errorf("binary %s not found in archive", binaryName)
 }
 
 func replaceBinary(newBinary []byte) error {

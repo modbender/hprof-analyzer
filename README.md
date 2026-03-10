@@ -16,16 +16,18 @@ A fast CLI tool for analyzing Java HPROF heap dumps — a lightweight alternativ
 
 ## Installation
 
-### Download from releases
+### Download from releases (Linux / macOS)
 
 ```bash
-# Linux (amd64)
-curl -sL https://github.com/modbender/hprof-analyzer/releases/latest/download/hprof-analyzer_linux_amd64.tar.gz | tar xz
-sudo mv hprof-analyzer /usr/local/bin/
+curl -sLo /usr/local/bin/hprof-analyzer "https://github.com/modbender/hprof-analyzer/releases/latest/download/hprof-analyzer_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/' | sed 's/aarch64/arm64/')"
+chmod +x /usr/local/bin/hprof-analyzer
+```
 
-# macOS (arm64)
-curl -sL https://github.com/modbender/hprof-analyzer/releases/latest/download/hprof-analyzer_darwin_arm64.tar.gz | tar xz
-sudo mv hprof-analyzer /usr/local/bin/
+### Download from releases (Windows)
+
+```powershell
+$arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
+Invoke-WebRequest -Uri "https://github.com/modbender/hprof-analyzer/releases/latest/download/hprof-analyzer_windows_${arch}" -OutFile "$env:LOCALAPPDATA\Microsoft\WindowsApps\hprof-analyzer.exe"
 ```
 
 ### Go install
